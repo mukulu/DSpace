@@ -7,6 +7,7 @@
  */
 package org.dspace.rest;
 
+import main.java.org.dspace.rest.common.ResponseWrapper;
 import org.apache.log4j.Logger;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.factory.AuthorizeServiceFactory;
@@ -122,17 +123,17 @@ public class CommunitiesResource extends Resource
     }
 
     /**
-     * Return all communities in DSpace.
+     * Return an object including communities in DSpace and a paging object.
      * 
      * @param expand
      *     String in which is what you want to add to returned instance
      *     of community. Options are: "all", "parentCommunity",
      *     "collections", "subCommunities" and "logo". If you want to use
      *     multiple options, it must be separated by commas.
-     * @param limit
-     *     Maximum communities in array. Default value is 100.
-     * @param offset
-     *     Index from which will start array of communities.
+     * @param pageSize
+     *     How many items in array will be. Default value is 10.
+     * @param page
+     *     On which page will the array start. Default value is 1.
      * @param user_ip
      *     User's IP address.
      * @param user_agent
@@ -155,30 +156,26 @@ public class CommunitiesResource extends Resource
      */
     @GET
     @Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
-    public Community[] getCommunities(@QueryParam("expand") String expand,
-            @QueryParam("limit") @DefaultValue("100") Integer limit, @QueryParam("offset") @DefaultValue("0") Integer offset,
+    public ResponseWrapper getCommunities(@QueryParam("expand") String expand,
+                                      @QueryParam("paging") @DefaultValue("false") Boolean paging,@QueryParam("pageSize") @DefaultValue("10") Integer pageSize,@QueryParam("page") @DefaultValue("1") Integer page,
             @QueryParam("userIP") String user_ip, @QueryParam("userAgent") String user_agent,
             @QueryParam("xforwardedfor") String xforwardedfor, @Context HttpHeaders headers, @Context HttpServletRequest request)
             throws WebApplicationException
     {
 
-        log.info("Reading all communities.(offset=" + offset + " ,limit=" + limit + ").");
+        log.info("Reading all communities.(page=" + page + ",pageSize=" + pageSize + ").");
         org.dspace.core.Context context = null;
         ArrayList<Community> communities = null;
-
+        int total = 0;
+        int offset = (page - 1) * pageSize;
+        int limit = ((page - 1) * pageSize) + pageSize;
         try
         {
             context = createContext();
 
             List<org.dspace.content.Community> dspaceCommunities = communityService.findAll(context);
             communities = new ArrayList<Community>();
-
-            if (!((limit != null) && (limit >= 0) && (offset != null) && (offset >= 0)))
-            {
-                log.warn("Paging was badly set, using default values.");
-                limit = 100;
-                offset = 0;
-            }
+            total = dspaceCommunities.size();
 
             for (int i = offset; (i < (offset + limit)) && i < dspaceCommunities.size(); i++)
             {
@@ -207,11 +204,14 @@ public class CommunitiesResource extends Resource
         }
 
         log.trace("All communities successfully read.");
-        return communities.toArray(new Community[0]);
+        ResponseWrapper responseWrapper = new ResponseWrapper(page,pageSize,total,paging);
+        responseWrapper.addObjects(communities.toArray(new Community[0]));
+
+        return responseWrapper;
     }
 
     /**
-     * Return all top communities in DSpace. Top communities are communities on
+     * Return an object with top communities in DSpace and an object for paging. Top communities are communities on
      * the root of tree.
      * 
      * @param expand
@@ -219,11 +219,10 @@ public class CommunitiesResource extends Resource
      *     of community. Options are: "all", "parentCommunity",
      *     "collections", "subCommunities" and "logo". If you want to use
      *     multiple options, it must be separated by commas.
-     * @param limit
-     *     Maximum communities in array. Default value is 100.
-     * @param offset
-     *     Index from which will start array of communities. Default
-     *     value is 0.
+     * @param pageSize
+     *     How many items in array will be. Default value is 10.
+     * @param page
+     *     On which page will the array start. Default value is 1.
      * @param user_ip
      *     User's IP address.
      * @param user_agent
@@ -247,30 +246,27 @@ public class CommunitiesResource extends Resource
     @GET
     @Path("/top-communities")
     @Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
-    public Community[] getTopCommunities(@QueryParam("expand") String expand,
-            @QueryParam("limit") @DefaultValue("20") Integer limit, @QueryParam("offset") @DefaultValue("0") Integer offset,
+    public ResponseWrapper getTopCommunities(@QueryParam("expand") String expand,
+                                         @QueryParam("paging") @DefaultValue("false") Boolean paging,@QueryParam("pageSize") @DefaultValue("10") Integer pageSize,@QueryParam("page") @DefaultValue("1") Integer page,
             @QueryParam("userIP") String user_ip, @QueryParam("userAgent") String user_agent,
             @QueryParam("xforwardedfor") String xforwardedfor, @Context HttpHeaders headers, @Context HttpServletRequest request)
             throws WebApplicationException
     {
 
-        log.info("Reading all top communities.(offset=" + offset + " ,limit=" + limit + ").");
+        log.info("Reading all top communities.(page=" + page + ",pageSize=" + pageSize + ").");
         org.dspace.core.Context context = null;
         ArrayList<Community> communities = null;
 
+        int total = 0;
+        int offset = (page - 1) * pageSize;
+        int limit = ((page - 1) * pageSize) + pageSize;
         try
         {
             context = createContext();
 
             List<org.dspace.content.Community> dspaceCommunities = communityService.findAllTop(context);
             communities = new ArrayList<Community>();
-
-            if (!((limit != null) && (limit >= 0) && (offset != null) && (offset >= 0)))
-            {
-                log.warn("Paging was badly set, using default values.");
-                limit = 100;
-                offset = 0;
-            }
+            total = dspaceCommunities.size();
 
             for (int i = offset; (i < (offset + limit)) && i < dspaceCommunities.size(); i++)
             {
@@ -299,11 +295,14 @@ public class CommunitiesResource extends Resource
         }
 
         log.trace("All top communities successfully read.");
-        return communities.toArray(new Community[0]);
+        ResponseWrapper responseWrapper = new ResponseWrapper(page,pageSize,total,paging);
+        responseWrapper.addObjects(communities.toArray(new Community[0]));
+
+        return responseWrapper;
     }
 
     /**
-     * Return all collections of community.
+     * Return an object with collections of community and an object for paging.
      * 
      * @param communityId
      *     Id of community in DSpace.
@@ -312,11 +311,10 @@ public class CommunitiesResource extends Resource
      *     of collection. Options are: "all", "parentCommunityList",
      *     "parentCommunity", "items", "license" and "logo". If you want
      *     to use multiple options, it must be separated by commas.
-     * @param limit
-     *     Maximum collection in array. Default value is 100.
-     * @param offset
-     *     Index from which will start array of collections. Default
-     *     value is 0.
+     * @param pageSize
+     *     How many items in array will be. Default value is 10.
+     * @param page
+     *     On which page will the array start. Default value is 1.
      * @param user_ip
      *     User's IP address.
      * @param user_agent
@@ -340,9 +338,9 @@ public class CommunitiesResource extends Resource
     @GET
     @Path("/{community_id}/collections")
     @Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
-    public Collection[] getCommunityCollections(@PathParam("community_id") String communityId,
-            @QueryParam("expand") String expand, @QueryParam("limit") @DefaultValue("100") Integer limit,
-            @QueryParam("offset") @DefaultValue("0") Integer offset, @QueryParam("userIP") String user_ip,
+    public ResponseWrapper getCommunityCollections(@PathParam("community_id") String communityId,
+            @QueryParam("expand") String expand, @QueryParam("paging") @DefaultValue("false") Boolean paging,@QueryParam("pageSize") @DefaultValue("10") Integer pageSize,
+            @QueryParam("page") @DefaultValue("1") Integer page, @QueryParam("userIP") String user_ip,
             @QueryParam("userAgent") String user_agent, @QueryParam("xforwardedfor") String xforwardedfor,
             @Context HttpHeaders headers, @Context HttpServletRequest request) throws WebApplicationException
     {
@@ -351,6 +349,9 @@ public class CommunitiesResource extends Resource
         org.dspace.core.Context context = null;
         ArrayList<Collection> collections = null;
 
+        int total = 0;
+        int offset = (page - 1) * pageSize;
+        int limit = ((page - 1) * pageSize) + pageSize;
         try
         {
             context = createContext();
@@ -359,15 +360,9 @@ public class CommunitiesResource extends Resource
             writeStats(dspaceCommunity, UsageEvent.Action.VIEW, user_ip, user_agent, xforwardedfor, headers,
                     request, context);
 
-            if (!((limit != null) && (limit >= 0) && (offset != null) && (offset >= 0)))
-            {
-                log.warn("Pagging was badly set, using default values.");
-                limit = 100;
-                offset = 0;
-            }
-
             collections = new ArrayList<Collection>();
             List<org.dspace.content.Collection> dspaceCollections = dspaceCommunity.getCollections();
+            total = dspaceCollections.size();
             for (int i = offset; (i < (offset + limit)) && (i < dspaceCollections.size()); i++)
             {
                 if (authorizeService.authorizeActionBoolean(context, dspaceCollections.get(i), org.dspace.core.Constants.READ))
@@ -396,11 +391,14 @@ public class CommunitiesResource extends Resource
         }
 
         log.trace("Community(id=" + communityId + ") collections were successfully read.");
-        return collections.toArray(new Collection[0]);
+        ResponseWrapper responseWrapper = new ResponseWrapper(page,pageSize,total,paging);
+        responseWrapper.addObjects(collections.toArray(new Collection[0]));
+
+        return responseWrapper;
     }
 
     /**
-     * Return all subcommunities of community.
+     * Return an object with subcommunities of community and an object for paging.
      * 
      * @param communityId
      *     Id of community in DSpace.
@@ -409,11 +407,10 @@ public class CommunitiesResource extends Resource
      *     of community. Options are: "all", "parentCommunity",
      *     "collections", "subCommunities" and "logo". If you want to use
      *     multiple options, it must be separated by commas.
-     * @param limit
-     *     Maximum communities in array. Default value is 20.
-     * @param offset
-     *     Index from which will start array of communities. Default
-     *     value is 0.
+     * @param pageSize
+     *     How many items in array will be. Default value is 10.
+     * @param page
+     *     On which page will the array start. Default value is 1.
      * @param user_ip
      *     User's IP address.
      * @param user_agent
@@ -437,9 +434,9 @@ public class CommunitiesResource extends Resource
     @GET
     @Path("/{community_id}/communities")
     @Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
-    public Community[] getCommunityCommunities(@PathParam("community_id") String communityId,
-            @QueryParam("expand") String expand, @QueryParam("limit") @DefaultValue("20") Integer limit,
-            @QueryParam("offset") @DefaultValue("0") Integer offset, @QueryParam("userIP") String user_ip,
+    public ResponseWrapper getCommunityCommunities(@PathParam("community_id") String communityId,
+            @QueryParam("expand") String expand, @QueryParam("paging") @DefaultValue("false") Boolean paging,
+            @QueryParam("pageSize") @DefaultValue("10") Integer pageSize,@QueryParam("page") @DefaultValue("1") Integer page, @QueryParam("userIP") String user_ip,
             @QueryParam("userAgent") String user_agent, @QueryParam("xforwardedfor") String xforwardedfor,
             @Context HttpHeaders headers, @Context HttpServletRequest request) throws WebApplicationException
     {
@@ -447,7 +444,9 @@ public class CommunitiesResource extends Resource
         log.info("Reading community(id=" + communityId + ") subcommunities.");
         org.dspace.core.Context context = null;
         ArrayList<Community> communities = null;
-
+        int total = 0;
+        int offset = (page - 1) * pageSize;
+        int limit = ((page - 1) * pageSize) + pageSize;
         try
         {
             context = createContext();
@@ -456,15 +455,9 @@ public class CommunitiesResource extends Resource
             writeStats(dspaceCommunity, UsageEvent.Action.VIEW, user_ip, user_agent, xforwardedfor, headers,
                     request, context);
 
-            if (!((limit != null) && (limit >= 0) && (offset != null) && (offset >= 0)))
-            {
-                log.warn("Pagging was badly set, using default values.");
-                limit = 100;
-                offset = 0;
-            }
-
             communities = new ArrayList<Community>();
             List<org.dspace.content.Community> dspaceCommunities = dspaceCommunity.getSubcommunities();
+            total = dspaceCommunities.size();
             for (int i = offset; (i < (offset + limit)) && (i < dspaceCommunities.size()); i++)
             {
                 if (authorizeService.authorizeActionBoolean(context, dspaceCommunities.get(i), org.dspace.core.Constants.READ))
@@ -494,7 +487,10 @@ public class CommunitiesResource extends Resource
         }
 
         log.trace("Community(id=" + communityId + ") subcommunities were successfully read.");
-        return communities.toArray(new Community[0]);
+        ResponseWrapper responseWrapper = new ResponseWrapper(page,pageSize,total,paging);
+        responseWrapper.addObjects(communities.toArray(new Community[0]));
+
+        return responseWrapper;
     }
 
     /**

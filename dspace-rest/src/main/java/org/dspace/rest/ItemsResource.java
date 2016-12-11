@@ -7,6 +7,7 @@
  */
 package org.dspace.rest;
 
+import main.java.org.dspace.rest.common.ResponseWrapper;
 import org.apache.log4j.Logger;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.factory.AuthorizeServiceFactory;
@@ -33,10 +34,7 @@ import javax.ws.rs.core.Response.Status;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 /**
  * Class which provide all CRUD methods over items.
@@ -137,7 +135,7 @@ public class ItemsResource extends Resource
     }
 
     /**
-     * It returns an array of items in DSpace. You can define how many items in
+     * It returns an object with an array of items in DSpace and an object for paging. You can define how many items in
      * list will be and from which index will start. Items in list are sorted by
      * handle, not by id.
      *
@@ -146,10 +144,10 @@ public class ItemsResource extends Resource
      *     returned item. Options are separeted by commas and are: "all",
      *     "metadata", "parentCollection", "parentCollectionList",
      *     "parentCommunityList" and "bitstreams".
-     * @param limit
-     *     How many items in array will be. Default value is 100.
-     * @param offset
-     *     On which index will array start. Default value is 0.
+     * @param pageSize
+     *     How many items in array will be. Default value is 10.
+     * @param page
+     *     On which page will the array start. Default value is 1.
      * @param user_ip
      *     User's IP address.
      * @param user_agent
@@ -174,41 +172,38 @@ public class ItemsResource extends Resource
      */
     @GET
     @Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
-    public Item[] getItems(@QueryParam("expand") String expand, @QueryParam("limit") @DefaultValue("100") Integer limit,
-        @QueryParam("offset") @DefaultValue("0") Integer offset, @QueryParam("userIP") String user_ip,
-        @QueryParam("userAgent") String user_agent, @QueryParam("xforwardedfor") String xforwardedfor,
+    public ResponseWrapper getItems(@QueryParam("expand") String expand,
+        @QueryParam("paging") @DefaultValue("false") Boolean paging,@QueryParam("pageSize") @DefaultValue("10") Integer pageSize,@QueryParam("page") @DefaultValue("1") Integer page, 
+        @QueryParam("userIP") String user_ip,@QueryParam("userAgent") String user_agent, @QueryParam("xforwardedfor") String xforwardedfor,
         @Context HttpHeaders headers, @Context HttpServletRequest request)
         throws WebApplicationException
     {
 
-        log.info("Reading items.(offset=" + offset + ",limit=" + limit + ").");
+        log.info("Reading items.(page=" + page + ",pageSize=" + pageSize + ").");
         org.dspace.core.Context context = null;
         List<Item> items = null;
-
+        int total = 0;
+        int offset = (page - 1) * pageSize;
+        int limit = ((page - 1) * pageSize) + pageSize;
         try
         {
             context = createContext();
-
             Iterator<org.dspace.content.Item> dspaceItems = itemService.findAllUnfiltered(context);
             items = new ArrayList<Item>();
-
-            if (!((limit != null) && (limit >= 0) && (offset != null) && (offset >= 0)))
+            
+            for (int i = 0; (dspaceItems.hasNext()); i++)
             {
-                log.warn("Paging was badly set, using default values.");
-                limit = 100;
-                offset = 0;
-            }
-
-            for (int i = 0; (dspaceItems.hasNext()) && (i < (limit + offset)); i++)
-            {
+                total++;
                 org.dspace.content.Item dspaceItem = dspaceItems.next();
-                if (i >= offset)
-                {
-                    if (itemService.isItemListedForUser(context, dspaceItem))
+                if(i < (limit + offset)){
+                    if (i >= offset)
                     {
-                        items.add(new Item(dspaceItem, servletContext, expand, context));
-                        writeStats(dspaceItem, UsageEvent.Action.VIEW, user_ip, user_agent, xforwardedfor,
-                                headers, request, context);
+                        if (itemService.isItemListedForUser(context, dspaceItem))
+                        {
+                            items.add(new Item(dspaceItem, servletContext, expand, context));
+                            writeStats(dspaceItem, UsageEvent.Action.VIEW, user_ip, user_agent, xforwardedfor,
+                                    headers, request, context);
+                        }
                     }
                 }
             }
@@ -228,11 +223,16 @@ public class ItemsResource extends Resource
         }
 
         log.trace("Items were successfully read.");
-        return items.toArray(new Item[0]);
+        System.out.println("Here:");
+        ResponseWrapper responseWrapper = new ResponseWrapper(page,pageSize,total,paging);
+        System.out.println("Here1");
+        responseWrapper.addObjects(items.toArray(new Item[0]));
+        System.out.println("Here2");
+        return responseWrapper;
     }
 
     /**
-     * Returns item metadata in list.
+     * Returns an item metadata in list.
      *
      * @param itemId
      *     Id of item in DSpace.
@@ -301,14 +301,14 @@ public class ItemsResource extends Resource
     }
 
     /**
-     * Return array of bitstreams in item. It can be paged.
+     * Return an object with array of bitstreams in item and an object for paging.
      *
      * @param itemId
      *     Id of item in DSpace.
-     * @param limit
-     *     How many items will be in array.
-     * @param offset
-     *     On which index will start array.
+     * @param pageSize
+     *     How many items in array will be. Default value is 10.
+     * @param page
+     *     On which page will the array start. Default value is 1.
      * @param user_ip
      *     User's IP address.
      * @param user_agent
@@ -333,16 +333,20 @@ public class ItemsResource extends Resource
     @GET
     @Path("/{item_id}/bitstreams")
     @Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
-    public Bitstream[] getItemBitstreams(@PathParam("item_id") String itemId,
-        @QueryParam("limit") @DefaultValue("20") Integer limit, @QueryParam("offset") @DefaultValue("0") Integer offset,
+    public ResponseWrapper getItemBitstreams(@PathParam("item_id") String itemId,
+                                         @QueryParam("paging") @DefaultValue("false") Boolean paging,@QueryParam("pageSize") @DefaultValue("10") Integer pageSize,@QueryParam("page") @DefaultValue("1") Integer page,
         @QueryParam("userIP") String user_ip, @QueryParam("userAgent") String user_agent,
         @QueryParam("xforwardedfor") String xforwardedfor, @Context HttpHeaders headers, @Context HttpServletRequest request)
         throws WebApplicationException
     {
 
-        log.info("Reading item(id=" + itemId + ") bitstreams.(offset=" + offset + ",limit=" + limit + ")");
+        log.info("Reading item(id=" + itemId + ") bitstreams.(page=\" + page + \",pageSize=\" + pageSize + \")");
         org.dspace.core.Context context = null;
         List<Bitstream> bitstreams = null;
+
+        int total = 0;
+        int offset = (page - 1) * pageSize;
+        int limit = ((page - 1) * pageSize) + pageSize;
         try
         {
             context = createContext();
@@ -377,7 +381,10 @@ public class ItemsResource extends Resource
         }
 
         log.trace("Item(id=" + itemId + ") bitstreams were successfully read.");
-        return bitstreams.toArray(new Bitstream[0]);
+        ResponseWrapper responseWrapper = new ResponseWrapper(page,pageSize,total,paging);
+        responseWrapper.addObjects(bitstreams.toArray(new Bitstream[0]));
+       
+        return responseWrapper;
     }
 
     /**

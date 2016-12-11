@@ -30,6 +30,7 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import main.java.org.dspace.rest.common.ResponseWrapper;
 import org.apache.log4j.Logger;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.factory.AuthorizeServiceFactory;
@@ -148,7 +149,7 @@ public class CollectionsResource extends Resource
     }
 
     /**
-     * Return array of all collections in DSpace. You can add more properties
+     * Return an object with an array of collections in DSpace and an object for paging. You can add more properties
      * through expand parameter.
      * 
      * @param expand
@@ -156,12 +157,10 @@ public class CollectionsResource extends Resource
      *     of collection. Options are: "all", "parentCommunityList",
      *     "parentCommunity", "items", "license" and "logo". If you want
      *     to use multiple options, it must be separated by commas.
-     * @param limit
-     *     Limit value for items in list in collection. Default value is
-     *     100.
-     * @param offset
-     *     Offset of start index in list of items of collection. Default
-     *     value is 0.
+     * @param pageSize
+     *     How many items in array will be. Default value is 10.
+     * @param page
+     *     On which page will the array start. Default value is 1.
      * @param user_ip
      *     User's IP address.
      * @param user_agent
@@ -186,29 +185,25 @@ public class CollectionsResource extends Resource
      */
     @GET
     @Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
-    public org.dspace.rest.common.Collection[] getCollections(@QueryParam("expand") String expand,
-            @QueryParam("limit") @DefaultValue("100") Integer limit, @QueryParam("offset") @DefaultValue("0") Integer offset,
+    public ResponseWrapper getCollections(@QueryParam("expand") String expand,
+            @QueryParam("paging") @DefaultValue("false") Boolean paging,@QueryParam("pageSize") @DefaultValue("10") Integer pageSize,@QueryParam("page") @DefaultValue("1") Integer page,
             @QueryParam("userIP") String user_ip, @QueryParam("userAgent") String user_agent,
             @QueryParam("xforwardedfor") String xforwardedfor, @Context HttpHeaders headers, @Context HttpServletRequest request)
             throws WebApplicationException
     {
 
-        log.info("Reading all collections.(offset=" + offset + ",limit=" + limit + ")");
+        log.info("Reading all collections.(page=" + page + ",pageSize=" + pageSize + ")");
         org.dspace.core.Context context = null;
         List<Collection> collections = new ArrayList<Collection>();
-
+        int total = 0;
+        int offset = (page - 1) * pageSize;
+        int limit = ((page - 1) * pageSize) + pageSize;
         try
         {
             context = createContext();
 
-            if (!((limit != null) && (limit >= 0) && (offset != null) && (offset >= 0)))
-            {
-                log.warn("Paging was badly set.");
-                limit = 100;
-                offset = 0;
-            }
-
             List<org.dspace.content.Collection> dspaceCollections = collectionService.findAll(context, limit, offset);
+            total = dspaceCollections.size();
             for(org.dspace.content.Collection dspaceCollection : dspaceCollections)
             {
                 if (authorizeService.authorizeActionBoolean(context, dspaceCollection, org.dspace.core.Constants.READ))
@@ -236,11 +231,14 @@ public class CollectionsResource extends Resource
         }
 
         log.trace("All collections were successfully read.");
-        return collections.toArray(new org.dspace.rest.common.Collection[0]);
+        ResponseWrapper responseWrapper = new ResponseWrapper(page,pageSize,total,paging);
+        responseWrapper.addObjects(collections.toArray(new org.dspace.rest.common.Collection[0]));
+       
+        return responseWrapper;
     }
 
     /**
-     * Return array of items in collection. You can add more properties to items
+     * Return an object with an array of items in collection and an object for paging. You can add more properties to items
      * with expand parameter.
      * 
      * @param collectionId
@@ -250,11 +248,10 @@ public class CollectionsResource extends Resource
      *     returned item. Options are separeted by commas and are: "all",
      *     "metadata", "parentCollection", "parentCollectionList",
      *     "parentCommunityList" and "bitstreams".
-     * @param limit
-     *     Limit value for items in array. Default value is 100.
-     * @param offset
-     *     Offset of start index in array of items of collection. Default
-     *     value is 0.
+     * @param pageSize
+     *     How many items in array will be. Default value is 10.
+     * @param page
+     *     On which page will the array start. Default value is 1.
      * @param user_ip
      *     User's IP address.
      * @param user_agent
@@ -283,9 +280,9 @@ public class CollectionsResource extends Resource
     @GET
     @Path("/{collection_id}/items")
     @Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
-    public org.dspace.rest.common.Item[] getCollectionItems(@PathParam("collection_id") String collectionId,
-            @QueryParam("expand") String expand, @QueryParam("limit") @DefaultValue("100") Integer limit,
-            @QueryParam("offset") @DefaultValue("0") Integer offset, @QueryParam("userIP") String user_ip,
+    public ResponseWrapper getCollectionItems(@PathParam("collection_id") String collectionId,
+            @QueryParam("expand") String expand, @QueryParam("paging") @DefaultValue("false") Boolean paging,@QueryParam("pageSize") @DefaultValue("10") Integer pageSize,
+            @QueryParam("page") @DefaultValue("1") Integer page, @QueryParam("userIP") String user_ip,
             @QueryParam("userAgent") String user_agent, @QueryParam("xforwardedfor") String xforwardedfor,
             @Context HttpHeaders headers, @Context HttpServletRequest request) throws WebApplicationException
     {
@@ -293,7 +290,9 @@ public class CollectionsResource extends Resource
         log.info("Reading collection(id=" + collectionId + ") items.");
         org.dspace.core.Context context = null;
         List<Item> items = null;
-
+        int total = 0;
+        int offset = (page - 1) * pageSize;
+        int limit = ((page - 1) * pageSize) + pageSize;
         try
         {
             context = createContext();
@@ -304,10 +303,11 @@ public class CollectionsResource extends Resource
 
             items = new ArrayList<Item>();
             Iterator<org.dspace.content.Item> dspaceItems = itemService.findByCollection(context, dspaceCollection);
-            for (int i = 0; (dspaceItems.hasNext()) && (i < (limit + offset)); i++)
+            for (int i = 0; (dspaceItems.hasNext()); i++)
             {
+                total++;
                 org.dspace.content.Item dspaceItem = dspaceItems.next();
-
+                if(i < (limit + offset))
                 if (i >= offset)
                 {
                     if (itemService.isItemListedForUser(context, dspaceItem))
@@ -335,7 +335,9 @@ public class CollectionsResource extends Resource
         }
 
         log.trace("All items in collection(id=" + collectionId + ") were successfully read.");
-        return items.toArray(new Item[0]);
+        ResponseWrapper responseWrapper = new ResponseWrapper(page,pageSize,total,paging);
+        responseWrapper.addObjects(items.toArray(new Item[0]));
+        return responseWrapper;
     }
 
     /**
@@ -559,8 +561,7 @@ public class CollectionsResource extends Resource
     @Consumes({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
     public Response deleteCollection(@PathParam("collection_id") String collectionId, @QueryParam("userIP") String user_ip,
             @QueryParam("userAgent") String user_agent, @QueryParam("xforwardedfor") String xforwardedfor,
-            @Context HttpHeaders headers, @Context HttpServletRequest request) throws WebApplicationException
-    {
+            @Context HttpHeaders headers, @Context HttpServletRequest request) throws WebApplicationException {
 
         log.info("Delete collection(id=" + collectionId + ").");
         org.dspace.core.Context context = null;
@@ -643,8 +644,7 @@ public class CollectionsResource extends Resource
     public Response deleteCollectionItem(@PathParam("collection_id") String collectionId, @PathParam("item_id") String itemId,
             @QueryParam("userIP") String user_ip, @QueryParam("userAgent") String user_agent,
             @QueryParam("xforwardedfor") String xforwardedfor, @Context HttpHeaders headers, @Context HttpServletRequest request)
-            throws WebApplicationException
-    {
+            throws WebApplicationException {
 
         log.info("Delete item(id=" + itemId + ") in collection(id=" + collectionId + ").");
         org.dspace.core.Context context = null;
