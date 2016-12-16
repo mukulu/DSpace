@@ -7,6 +7,7 @@
  */
 package org.dspace.content.dao;
 
+import org.dspace.content.Filter;
 import org.dspace.content.Collection;
 import org.dspace.content.Item;
 import org.dspace.content.MetadataField;
@@ -31,6 +32,8 @@ public interface ItemDAO extends DSpaceObjectLegacySupportDAO<Item>
     public Iterator<Item> findAll(Context context, boolean archived) throws SQLException;
 
     public Iterator<Item> findAll(Context context, boolean archived, boolean withdrawn) throws SQLException;
+
+    public Iterator<Item> findAll(Context context,Filter filter, boolean archived, boolean withdrawn) throws SQLException;
 
     /**
      * Find all Items modified since a Date.

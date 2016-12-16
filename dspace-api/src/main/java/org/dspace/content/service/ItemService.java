@@ -7,6 +7,7 @@
  */
 package org.dspace.content.service;
 
+import org.dspace.content.Filter;
 import org.dspace.authorize.AuthorizeException;
 import org.dspace.authorize.ResourcePolicy;
 import org.dspace.content.*;
@@ -79,6 +80,17 @@ public interface ItemService extends DSpaceObjectService<Item>, DSpaceObjectLega
      * @throws SQLException if database error
      */
     public Iterator<Item> findAllUnfiltered(Context context) throws SQLException;
+
+    /**
+     * Get all "final" items in the archive, both archived ("in archive" flag) or
+     * withdrawn items are included. The order of the list is indeterminate.
+     *
+     * @param context
+     *            DSpace context object
+     * @return an iterator over the items in the archive.
+     * @throws SQLException if database error
+     */
+    public Iterator<Item> findAllUnfiltered(Context context,Filter filter) throws SQLException;
 
     /**
      * Find all the items in the archive by a given submitter. The order is

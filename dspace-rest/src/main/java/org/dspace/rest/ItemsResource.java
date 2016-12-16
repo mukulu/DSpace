@@ -172,13 +172,12 @@ public class ItemsResource extends Resource
      */
     @GET
     @Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
-    public ResponseWrapper getItems(@QueryParam("expand") String expand,
+    public ResponseWrapper getItems(@QueryParam("expand") String expand,@QueryParam("filter") List<String> filter,
         @QueryParam("paging") @DefaultValue("false") Boolean paging,@QueryParam("pageSize") @DefaultValue("10") Integer pageSize,@QueryParam("page") @DefaultValue("1") Integer page, 
         @QueryParam("userIP") String user_ip,@QueryParam("userAgent") String user_agent, @QueryParam("xforwardedfor") String xforwardedfor,
         @Context HttpHeaders headers, @Context HttpServletRequest request)
         throws WebApplicationException
     {
-
         log.info("Reading items.(page=" + page + ",pageSize=" + pageSize + ").");
         org.dspace.core.Context context = null;
         List<Item> items = null;
@@ -188,7 +187,7 @@ public class ItemsResource extends Resource
         try
         {
             context = createContext();
-            Iterator<org.dspace.content.Item> dspaceItems = itemService.findAllUnfiltered(context);
+            Iterator<org.dspace.content.Item> dspaceItems = itemService.findAllUnfiltered(context,new org.dspace.content.Filter(filter));
             items = new ArrayList<Item>();
             
             for (int i = 0; (dspaceItems.hasNext()); i++)
@@ -223,9 +222,7 @@ public class ItemsResource extends Resource
         }
 
         log.trace("Items were successfully read.");
-        System.out.println("Here:");
         ResponseWrapper responseWrapper = new ResponseWrapper(page,pageSize,total,paging);
-        System.out.println("Here1");
         responseWrapper.addObjects(items.toArray(new Item[0]));
         System.out.println("Here2");
         return responseWrapper;

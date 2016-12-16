@@ -7,6 +7,8 @@
  */
 package org.dspace.content.dao.impl;
 
+import org.dspace.content.Filter;
+import org.dspace.content.FilterParameter;
 import org.apache.log4j.Logger;
 import org.dspace.content.Collection;
 import org.dspace.content.Item;
@@ -26,11 +28,7 @@ import org.hibernate.criterion.Subqueries;
 import org.hibernate.type.StandardBasicTypes;
 
 import java.sql.SQLException;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Hibernate implementation of the Database Access Object interface class for the Item object.
@@ -60,6 +58,32 @@ public class ItemDAOImpl extends AbstractHibernateDSODAO<Item> implements ItemDA
         Query query = createQuery(context, "FROM Item WHERE inArchive= :in_archive or withdrawn = :withdrawn");
         query.setParameter("in_archive", archived);
         query.setParameter("withdrawn", withdrawn);
+        return iterate(query);
+    }
+
+    @Override
+    public Iterator<Item> findAll(Context context,Filter filter, boolean archived, boolean withdrawn) throws SQLException {
+
+        String queryStr = "FROM Item i WHERE inArchive= :in_archive or withdrawn = :withdrawn";
+        System.out.print("This:" + Arrays.toString(filter.getFilterParameters().toArray()));
+        Iterator iterator =  filter.getFilterParameters().iterator();
+        while(iterator.hasNext()) {
+            FilterParameter filterString = (FilterParameter) iterator.next();
+            queryStr += " and i." + filterString.getSqlComparator();
+        }
+        System.out.println(queryStr);
+        Query query = createQuery(context, queryStr);
+
+        query.setParameter("in_archive", archived);
+        query.setParameter("withdrawn", withdrawn);
+
+        iterator =  filter.getFilterParameters().iterator();
+
+        while(iterator.hasNext()) {
+            FilterParameter filterString = (FilterParameter) iterator.next();
+            System.out.println(filterString.getName() + ":" + filterString.getValue());
+            query.setParameter(filterString.getName(), filterString.getValue());
+        }
         return iterate(query);
     }
 

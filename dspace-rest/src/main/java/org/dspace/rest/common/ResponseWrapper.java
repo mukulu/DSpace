@@ -15,24 +15,28 @@ public class ResponseWrapper implements Serializable {
     @XmlElement
     private Object[] results;
 
-    private boolean paging;
+    /*@XmlElement
+    private boolean paging;*/
     public ResponseWrapper(){
 
     }
     public ResponseWrapper(int page,int pageSize,int total,boolean paging){
-        this.paging = paging;
+        //this.paging = paging;
         this.pager = new Pager(page,pageSize,total);
     }
 
     public void addObjects(Object[] results){
+        //this.results = results;
         //this.results = Arrays.copyOfRange(results, (this.pager.getPage() - 1) * this.pager.getPageSize(), ((this.pager.getPage() - 1) * this.pager.getPageSize()) + this.pager.getPageSize());
         int startIndex = (this.pager.getPage() - 1) * this.pager.getPageSize();
         int endIndex = ((this.pager.getPage() - 1) * this.pager.getPageSize()) + this.pager.getPageSize();
+        //this.results = Arrays.copyOfRange(results,startIndex, endIndex);
         try{
             if(startIndex > results.length){
                 this.results = results;
             }else if(endIndex > results.length - 1){
-                this.results = Arrays.copyOfRange(results, startIndex,results.length - 1);
+                System.out.println(startIndex+":"+endIndex + ":" + results.length);
+                this.results = Arrays.copyOfRange(results, startIndex,results.length);
             }else{
                 this.results = Arrays.copyOfRange(results,startIndex, endIndex);
             }

@@ -206,6 +206,11 @@ public class ItemServiceImpl extends DSpaceObjectServiceImpl<Item> implements It
     }
 
     @Override
+    public Iterator<Item> findAllUnfiltered(Context context,Filter filter) throws SQLException {
+        return itemDAO.findAll(context,filter, true, true);
+    }
+
+    @Override
     public Iterator<Item> findBySubmitter(Context context, EPerson eperson) throws SQLException {
         return itemDAO.findBySubmitter(context, eperson);
     }
