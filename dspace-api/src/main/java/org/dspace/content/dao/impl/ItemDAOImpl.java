@@ -84,6 +84,7 @@ public class ItemDAOImpl extends AbstractHibernateDSODAO<Item> implements ItemDA
             System.out.println(filterString.getName() + ":" + filterString.getValue());
             query.setParameter(filterString.getName(), filterString.getValue());
         }
+        //TODO Here is where the error occuring
         return iterate(query);
     }
 
